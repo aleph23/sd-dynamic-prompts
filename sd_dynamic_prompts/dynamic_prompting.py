@@ -98,7 +98,7 @@ class Script(scripts.Script):
         self._prompt_writer = PromptWriter()
         self._wildcard_manager = WildcardManager(get_wildcard_dir())
 
-        if loaded_count % 2 == 0:
+        if loaded_count % 2:
             return
 
         callbacks.register_prompt_writer(self._prompt_writer)
