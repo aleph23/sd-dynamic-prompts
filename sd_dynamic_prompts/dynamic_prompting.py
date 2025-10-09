@@ -32,6 +32,10 @@ from sd_dynamic_prompts.paths import (
 )
 from sd_dynamic_prompts.prompt_writer import PromptWriter
 
+from modules.hashes import sha256_from_cache, calculate_sha256, addnet_hash_safetensors
+from modules.cache import cache, dump_cache
+from os.path import getmtime
+
 VERSION = __version__
 
 logger = logging.getLogger(__name__)
@@ -534,6 +538,8 @@ class Script(scripts.Script):
                 _lazy_params("Template", original_prompt, all_prompts[0])
                 _lazy_params("Negative Template", original_negative_prompt, all_negative_prompts[0])
 
+                self.params_used_collection(params)
+
         p.all_prompts = all_prompts
         p.all_negative_prompts = all_negative_prompts
         if no_image_generation:
@@ -557,7 +563,21 @@ class Script(scripts.Script):
                 original_negative_prompt,
             )
 
-    def process_batch(selfself, p, *args, **kwargs):
+    def params_used_collection(self, params, key: str = "Dynamic Prompts Hashes"):
+        try:
+            _files = {}
+            for _path in self._wildcard_manager.used_collection_dict().keys():
+                _key = str(_path.relative_to(self._wildcard_manager.path).as_posix())
+                _files[_key] = hashes_auto_v2(_path, str(_path.as_posix()))[:10]
+            params[key] = _files
+            print(_files)
+
+            dump_cache()
+        except e:
+            print(e)
+            pass
+
+    def process_batch(self, p, *args, **kwargs):
         batch_number = kwargs.get('batch_number')
         prompts = kwargs.get('prompts')
 
@@ -587,17 +607,21 @@ class Script(scripts.Script):
 
             grid = images[index_of_first_image-1]
 
+            params = res.extra_generation_params
+
             def _lazy_params(params, k1: str, v1: list, k2: str):
                 v2 = params.get(k2)
                 if v2 is not None and v1[0] != v2:
                     params[k1] = v1
 
-            res.extra_generation_params.pop("Template Generated", None)
-            res.extra_generation_params.pop("Negative Template Generated", None)
+            params.pop("Template Generated", None)
+            params.pop("Negative Template Generated", None)
 
             _lazy_params(res.extra_generation_params, "Template Generated Grid", res.all_prompts, "Template")
             _lazy_params(res.extra_generation_params, "Negative Template Generated Grid", res.all_negative_prompts,
                          "Negative Template")
+
+            self.params_used_collection(params)
 
             text = create_infotext(p, res.all_prompts, res.all_seeds, res.all_subseeds, use_main_prompt=True,
                             all_negative_prompts=res.all_negative_prompts)
@@ -605,6 +629,29 @@ class Script(scripts.Script):
 
             infotexts.pop(index_of_first_image-1)
             infotexts.insert(index_of_first_image-1, text)
+
+
+def hashes_auto_v2(filename, title, use_addnet_hash=False):
+    hashes = cache("hashes-addnet") if use_addnet_hash else cache("hashes")
+
+    sha256_value = sha256_from_cache(filename, title, use_addnet_hash)
+    if sha256_value is not None:
+        return sha256_value
+
+    # print(f"Calculating sha256 for {filename}: ", end='')
+    if use_addnet_hash:
+        with open(filename, "rb") as file:
+            sha256_value = addnet_hash_safetensors(file)
+    else:
+        sha256_value = calculate_sha256(filename)
+    # print(f"{sha256_value}")
+
+    hashes[title] = {
+        "mtime": getmtime(filename),
+        "sha256": sha256_value,
+    }
+
+    return sha256_value
 
 
 callbacks.register_settings()  # Settings need to be registered early, see #754.
