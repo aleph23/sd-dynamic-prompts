@@ -427,11 +427,6 @@ class Script(scripts.Script):
             self._wildcard_manager.clear_cache()
 
         try:
-            self._wildcard_manager.clear_used_collection()
-        except Exception as e:
-            pass
-
-        try:
             logger.debug("Creating generator")
 
             generator_builder = (
@@ -574,10 +569,11 @@ class Script(scripts.Script):
             for _path in self._wildcard_manager.used_collection_dict().keys():
                 _key = str(_path.relative_to(self._wildcard_manager.path).as_posix())
                 _files[_key] = hashes_auto_v2(_path, str(_path.as_posix()))[:10]
-            params[key] = _files
-            print(_files)
 
-            dump_cache()
+            if len(_files):
+                params[key] = _files
+                print(_files)
+                dump_cache()
         except e:
             print(e)
             pass
@@ -634,6 +630,11 @@ class Script(scripts.Script):
 
             infotexts.pop(index_of_first_image-1)
             infotexts.insert(index_of_first_image-1, text)
+
+        try:
+            self._wildcard_manager.clear_used_collection()
+        except Exception as e:
+            pass
 
 
 def hashes_auto_v2(filename, title, use_addnet_hash=False):
