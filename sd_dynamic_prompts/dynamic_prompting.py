@@ -427,6 +427,11 @@ class Script(scripts.Script):
             self._wildcard_manager.clear_cache()
 
         try:
+            self._wildcard_manager.clear_used_collection()
+        except Exception as e:
+            pass
+
+        try:
             logger.debug("Creating generator")
 
             generator_builder = (
