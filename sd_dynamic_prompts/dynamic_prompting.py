@@ -365,6 +365,7 @@ class Script(scripts.Script):
         magic_blocklist_regex: str | None,
     ):
 
+        self._pnginfo_saver.enabled = opts.dp_write_raw_template        
         self._prompt_writer.enabled = opts.dp_write_prompts_to_file
         
         if not is_enabled:
